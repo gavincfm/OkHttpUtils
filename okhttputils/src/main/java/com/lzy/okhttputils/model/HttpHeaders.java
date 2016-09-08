@@ -4,6 +4,7 @@ import android.os.Build;
 import android.text.TextUtils;
 
 import com.lzy.okhttputils.OkHttpUtils;
+import com.lzy.okhttputils.utils.OkLogger;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -13,11 +14,11 @@ import java.lang.reflect.Field;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * ================================================
@@ -29,6 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * ================================================
  */
 public class HttpHeaders implements Serializable {
+
+    private static final long serialVersionUID = 8458647755751403873L;
 
     public static final String FORMAT_HTTP_DATA = "EEE, dd MMM y HH:mm:ss 'GMT'";
     public static final TimeZone GMT_TIME_ZONE = TimeZone.getTimeZone("GMT");
@@ -42,6 +45,7 @@ public class HttpHeaders implements Serializable {
     public static final String HEAD_KEY_CONTENT_TYPE = "Content-Type";
     public static final String HEAD_KEY_CONTENT_LENGTH = "Content-Length";
     public static final String HEAD_KEY_CONTENT_ENCODING = "Content-Encoding";
+    public static final String HEAD_KEY_CONTENT_DISPOSITION = "Content-Disposition";
     public static final String HEAD_KEY_CONTENT_RANGE = "Content-Range";
     public static final String HEAD_KEY_CACHE_CONTROL = "Cache-Control";
     public static final String HEAD_KEY_CONNECTION = "Connection";
@@ -61,12 +65,12 @@ public class HttpHeaders implements Serializable {
     public static final String HEAD_KEY_SET_COOKIE = "Set-Cookie";
     public static final String HEAD_KEY_SET_COOKIE2 = "Set-Cookie2";
 
-    public ConcurrentHashMap<String, String> headersMap;
+    public LinkedHashMap<String, String> headersMap;
     private static String acceptLanguage;
     private static String userAgent;
 
     private void init() {
-        headersMap = new ConcurrentHashMap<>();
+        headersMap = new LinkedHashMap<>();
     }
 
     public HttpHeaders() {
@@ -98,6 +102,10 @@ public class HttpHeaders implements Serializable {
         return headersMap.remove(key);
     }
 
+    public void clear() {
+        headersMap.clear();
+    }
+
     public Set<String> getNames() {
         return headersMap.keySet();
     }
@@ -109,7 +117,7 @@ public class HttpHeaders implements Serializable {
                 jsonObject.put(entry.getKey(), entry.getValue());
             }
         } catch (JSONException e) {
-            e.printStackTrace();
+            OkLogger.e(e);
         }
         return jsonObject.toString();
     }
@@ -118,9 +126,8 @@ public class HttpHeaders implements Serializable {
         try {
             return parseGMTToMillis(gmtTime);
         } catch (ParseException e) {
-            e.printStackTrace();
+            return 0;
         }
-        return 0;
     }
 
     public static String getDate(long milliseconds) {
@@ -131,18 +138,16 @@ public class HttpHeaders implements Serializable {
         try {
             return parseGMTToMillis(expiresTime);
         } catch (ParseException e) {
-            e.printStackTrace();
+            return -1;
         }
-        return -1;
     }
 
     public static long getLastModified(String lastModified) {
         try {
             return parseGMTToMillis(lastModified);
         } catch (ParseException e) {
-            e.printStackTrace();
+            return 0;
         }
-        return 0;
     }
 
     public static String getCacheControl(String cacheControl, String pragma) {
@@ -165,8 +170,7 @@ public class HttpHeaders implements Serializable {
             String language = locale.getLanguage();
             String country = locale.getCountry();
             StringBuilder acceptLanguageBuilder = new StringBuilder(language);
-            if (!TextUtils.isEmpty(country))
-                acceptLanguageBuilder.append('-').append(country).append(',').append(language).append(";q=0.8");
+            if (!TextUtils.isEmpty(country)) acceptLanguageBuilder.append('-').append(country).append(',').append(language).append(";q=0.8");
             acceptLanguage = acceptLanguageBuilder.toString();
             return acceptLanguage;
         }

@@ -1,12 +1,13 @@
 package com.lzy.okhttputils.https;
 
+import com.lzy.okhttputils.utils.OkLogger;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -22,19 +23,28 @@ import javax.net.ssl.X509TrustManager;
 
 /** Https相关的工具类 */
 public class HttpsUtils {
-    public static SSLSocketFactory getSslSocketFactory(InputStream[] certificates, InputStream bksFile, String password) {
+
+    public static class SSLParams {
+        public SSLSocketFactory sSLSocketFactory;
+        public X509TrustManager trustManager;
+    }
+
+    public static SSLParams getSslSocketFactory(InputStream bksFile, String password, InputStream[] certificates) {
+        SSLParams sslParams = new SSLParams();
         try {
             KeyManager[] keyManagers = prepareKeyManager(bksFile, password);
             TrustManager[] trustManagers = prepareTrustManager(certificates);
             SSLContext sslContext = SSLContext.getInstance("TLS");
-            TrustManager trustManager;
+            X509TrustManager trustManager;
             if (trustManagers != null) {
                 trustManager = new MyTrustManager(chooseTrustManager(trustManagers));
             } else {
                 trustManager = new UnSafeTrustManager();
             }
-            sslContext.init(keyManagers, new TrustManager[]{trustManager}, new SecureRandom());
-            return sslContext.getSocketFactory();
+            sslContext.init(keyManagers, new TrustManager[]{trustManager}, null);
+            sslParams.sSLSocketFactory = sslContext.getSocketFactory();
+            sslParams.trustManager = trustManager;
+            return sslParams;
         } catch (NoSuchAlgorithmException e) {
             throw new AssertionError(e);
         } catch (KeyManagementException e) {
@@ -57,7 +67,7 @@ public class HttpsUtils {
                 try {
                     if (certificate != null) certificate.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    OkLogger.e(e);
                 }
             }
             TrustManagerFactory trustManagerFactory;
@@ -65,13 +75,13 @@ public class HttpsUtils {
             trustManagerFactory.init(keyStore);
             return trustManagerFactory.getTrustManagers();
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            OkLogger.e(e);
         } catch (CertificateException e) {
-            e.printStackTrace();
+            OkLogger.e(e);
         } catch (KeyStoreException e) {
-            e.printStackTrace();
+            OkLogger.e(e);
         } catch (Exception e) {
-            e.printStackTrace();
+            OkLogger.e(e);
         }
         return null;
     }
@@ -85,17 +95,17 @@ public class HttpsUtils {
             keyManagerFactory.init(clientKeyStore, password.toCharArray());
             return keyManagerFactory.getKeyManagers();
         } catch (KeyStoreException e) {
-            e.printStackTrace();
+            OkLogger.e(e);
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            OkLogger.e(e);
         } catch (UnrecoverableKeyException e) {
-            e.printStackTrace();
+            OkLogger.e(e);
         } catch (CertificateException e) {
-            e.printStackTrace();
+            OkLogger.e(e);
         } catch (IOException e) {
-            e.printStackTrace();
+            OkLogger.e(e);
         } catch (Exception e) {
-            e.printStackTrace();
+            OkLogger.e(e);
         }
         return null;
     }

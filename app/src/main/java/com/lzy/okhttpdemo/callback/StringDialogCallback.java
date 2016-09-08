@@ -5,10 +5,8 @@ import android.app.ProgressDialog;
 import android.support.annotation.Nullable;
 import android.view.Window;
 
+import com.lzy.okhttputils.callback.StringCallback;
 import com.lzy.okhttputils.request.BaseRequest;
-
-import okhttp3.Call;
-import okhttp3.Response;
 
 /**
  * ================================================
@@ -19,7 +17,7 @@ import okhttp3.Response;
  * 修订历史：
  * ================================================
  */
-public abstract class StringDialogCallback extends EncryptCallback<String> {
+public abstract class StringDialogCallback extends StringCallback {
 
     private ProgressDialog dialog;
 
@@ -32,11 +30,6 @@ public abstract class StringDialogCallback extends EncryptCallback<String> {
     }
 
     @Override
-    public String parseNetworkResponse(Response response) throws Exception {
-        return response.body().string();
-    }
-
-    @Override
     public void onBefore(BaseRequest request) {
         super.onBefore(request);
         //网络请求前显示对话框
@@ -46,8 +39,8 @@ public abstract class StringDialogCallback extends EncryptCallback<String> {
     }
 
     @Override
-    public void onAfter(boolean isFromCache, @Nullable String s, Call call, Response response, @Nullable Exception e) {
-        super.onAfter(isFromCache, s, call, response, e);
+    public void onAfter(@Nullable String s, @Nullable Exception e) {
+        super.onAfter(s, e);
         //网络请求结束后关闭对话框
         if (dialog != null && dialog.isShowing()) {
             dialog.dismiss();

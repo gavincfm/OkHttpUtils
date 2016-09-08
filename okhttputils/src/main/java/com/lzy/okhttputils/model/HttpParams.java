@@ -5,7 +5,9 @@ import java.io.Serializable;
 import java.net.FileNameMap;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import okhttp3.MediaType;
@@ -21,16 +23,19 @@ import okhttp3.MediaType;
  */
 public class HttpParams implements Serializable {
 
+    private static final long serialVersionUID = 7369819159227055048L;
+
+    public static final MediaType MEDIA_TYPE_PLAIN = MediaType.parse("text/plain;charset=utf-8");
+    public static final MediaType MEDIA_TYPE_JSON = MediaType.parse("application/json;charset=utf-8");
+    public static final MediaType MEDIA_TYPE_STREAM = MediaType.parse("application/octet-stream");
+
+    public static final boolean IS_REPLACE = true;
+
     /** 普通的键值对参数 */
-    public ConcurrentHashMap<String, List<String>> urlParamsMap;
+    public LinkedHashMap<String, List<String>> urlParamsMap;
 
     /** 文件的键值对参数 */
-    public ConcurrentHashMap<String, List<FileWrapper>> fileParamsMap;
-
-    private void init() {
-        urlParamsMap = new ConcurrentHashMap<>();
-        fileParamsMap = new ConcurrentHashMap<>();
-    }
+    public LinkedHashMap<String, List<FileWrapper>> fileParamsMap;
 
     public HttpParams() {
         init();
@@ -38,12 +43,17 @@ public class HttpParams implements Serializable {
 
     public HttpParams(String key, String value) {
         init();
-        put(key, value);
+        put(key, value, IS_REPLACE);
     }
 
     public HttpParams(String key, File file) {
         init();
         put(key, file);
+    }
+
+    private void init() {
+        urlParamsMap = new LinkedHashMap<>();
+        fileParamsMap = new LinkedHashMap<>();
     }
 
     public void put(HttpParams params) {
@@ -53,13 +63,29 @@ public class HttpParams implements Serializable {
         }
     }
 
+    public void put(Map<String, String> params) {
+        put(params, IS_REPLACE);
+    }
+
+    public void put(Map<String, String> params, boolean isReplace) {
+        if (params == null || params.isEmpty()) return;
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            put(entry.getKey(), entry.getValue(), isReplace);
+        }
+    }
+
     public void put(String key, String value) {
+        put(key, value, IS_REPLACE);
+    }
+
+    public void put(String key, String value, boolean isReplace) {
         if (key != null && value != null) {
             List<String> urlValues = urlParamsMap.get(key);
             if (urlValues == null) {
                 urlValues = new ArrayList<>();
                 urlParamsMap.put(key, urlValues);
             }
+            if (isReplace) urlValues.clear();
             urlValues.add(value);
         }
     }
@@ -67,7 +93,7 @@ public class HttpParams implements Serializable {
     public void putUrlParams(String key, List<String> values) {
         if (key != null && values != null && !values.isEmpty()) {
             for (String value : values) {
-                put(key, value);
+                put(key, value, false);
             }
         }
     }
@@ -121,6 +147,11 @@ public class HttpParams implements Serializable {
         fileParamsMap.remove(key);
     }
 
+    public void remove(String key) {
+        removeUrl(key);
+        removeFile(key);
+    }
+
     public void clear() {
         urlParamsMap.clear();
         fileParamsMap.clear();
@@ -128,6 +159,7 @@ public class HttpParams implements Serializable {
 
     private MediaType guessMimeType(String path) {
         FileNameMap fileNameMap = URLConnection.getFileNameMap();
+        path = path.replace("#", "");   //解决文件名中含有#号异常的问题
         String contentType = fileNameMap.getContentTypeFor(path);
         if (contentType == null) {
             contentType = "application/octet-stream";
@@ -135,9 +167,7 @@ public class HttpParams implements Serializable {
         return MediaType.parse(contentType);
     }
 
-    /**
-     * 文件类型的包装类
-     */
+    /** 文件类型的包装类 */
     public static class FileWrapper {
         public File file;
         public String fileName;
@@ -149,14 +179,6 @@ public class HttpParams implements Serializable {
             this.fileName = fileName;
             this.contentType = contentType;
             this.fileSize = file.length();
-        }
-
-        public String getFileName() {
-            if (fileName != null) {
-                return fileName;
-            } else {
-                return "nofilename";
-            }
         }
 
         @Override

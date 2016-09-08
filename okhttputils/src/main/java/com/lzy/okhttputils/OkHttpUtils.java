@@ -20,6 +20,7 @@ import com.lzy.okhttputils.request.HeadRequest;
 import com.lzy.okhttputils.request.OptionsRequest;
 import com.lzy.okhttputils.request.PostRequest;
 import com.lzy.okhttputils.request.PutRequest;
+import com.lzy.okhttputils.utils.OkLogger;
 
 import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +31,6 @@ import javax.net.ssl.SSLSession;
 import okhttp3.Call;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
-import okio.Buffer;
 
 /**
  * ================================================
@@ -43,6 +43,7 @@ import okio.Buffer;
  */
 public class OkHttpUtils {
     public static final int DEFAULT_MILLISECONDS = 60000; //默认的超时时间
+
     private static OkHttpUtils mInstance;                 //单例
     private Handler mDelivery;                            //用于在主线程执行的调度器
     private OkHttpClient.Builder okHttpClientBuilder;     //ok请求的客户端
@@ -92,6 +93,11 @@ public class OkHttpUtils {
         return okHttpClientBuilder.build();
     }
 
+    /** 对外暴露 OkHttpClient,方便自定义 */
+    public OkHttpClient.Builder getOkHttpClientBuilder() {
+        return okHttpClientBuilder;
+    }
+
     /** get请求 */
     public static GetRequest get(String url) {
         return new GetRequest(url);
@@ -122,9 +128,19 @@ public class OkHttpUtils {
         return new OptionsRequest(url);
     }
 
-    /** 调试模式 */
+    /** 调试模式,默认打开所有的异常调试 */
     public OkHttpUtils debug(String tag) {
+        debug(tag, true);
+        return this;
+    }
+
+    /**
+     * 调试模式,第二个参数表示所有catch住的log是否需要打印
+     * 一般来说,这些异常是由于不标准的数据格式,或者特殊需要主动产生的,并不是框架错误,如果不想每次打印,这里可以关闭异常显示
+     */
+    public OkHttpUtils debug(String tag, boolean isPrintException) {
         okHttpClientBuilder.addInterceptor(new LoggerInterceptor(tag, true));
+        OkLogger.debug(isPrintException);
         return this;
     }
 
@@ -148,16 +164,15 @@ public class OkHttpUtils {
 
     /** https的全局自签名证书 */
     public OkHttpUtils setCertificates(InputStream... certificates) {
-        okHttpClientBuilder.sslSocketFactory(HttpsUtils.getSslSocketFactory(certificates, null, null));
+        HttpsUtils.SSLParams sslParams = HttpsUtils.getSslSocketFactory(null, null, certificates);
+        okHttpClientBuilder.sslSocketFactory(sslParams.sSLSocketFactory, sslParams.trustManager);
         return this;
     }
 
-    /** https的全局自签名证书 */
-    public OkHttpUtils setCertificates(String... certificates) {
-        for (String certificate : certificates) {
-            InputStream inputStream = new Buffer().writeUtf8(certificate).inputStream();
-            setCertificates(inputStream);
-        }
+    /** https双向认证证书 */
+    public OkHttpUtils setCertificates(InputStream bksFile, String password, InputStream... certificates) {
+        HttpsUtils.SSLParams sslParams = HttpsUtils.getSslSocketFactory(bksFile, password, certificates);
+        okHttpClientBuilder.sslSocketFactory(sslParams.sSLSocketFactory, sslParams.trustManager);
         return this;
     }
 
